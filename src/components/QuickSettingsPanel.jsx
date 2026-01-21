@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Wifi, Moon, Sun, Github, Linkedin, Volume2, Sun as Brightness7, Moon as Brightness4, X } from 'lucide-react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { Wifi, Moon, Sun, Volume2, Settings } from 'lucide-react';
 
-function QuickSettingsPanel({ isOpen, onClose, onStatusBarDrag }, ref) {
+function QuickSettingsPanel({ isOpen, isDragging, panelHeight }, ref) {
   const [quickSettings, setQuickSettings] = useState({
     wifi: true,
     darkMode: false,
@@ -9,12 +9,10 @@ function QuickSettingsPanel({ isOpen, onClose, onStatusBarDrag }, ref) {
     volume: 50,
   });
 
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartY, setDragStartY] = useState(0);
-  const [panelHeight, setPanelHeight] = useState(0);
-  const [startDragFromStatusBar, setStartDragFromStatusBar] = useState(false);
-  
   const maxPanelHeight = 500;
+
+  // Calculate opacity based on panel height
+  
 
   const toggleSetting = (setting) => {
     setQuickSettings(prev => ({
@@ -30,109 +28,13 @@ function QuickSettingsPanel({ isOpen, onClose, onStatusBarDrag }, ref) {
     }));
   };
 
-  const handleDragStart = (clientY, fromStatusBar = false) => {
-    setIsDragging(true);
-    setDragStartY(clientY);
-    setStartDragFromStatusBar(fromStatusBar);
-  };
-
-  const handleDragMove = (clientY) => {
-    if (!isDragging) return;
-    
-    const deltaY = clientY - dragStartY;
-    
-    if (startDragFromStatusBar) {
-      // Dragging down from status bar - only allow downward drag
-      const newHeight = Math.min(Math.max(0, deltaY), maxPanelHeight);
-      setPanelHeight(newHeight);
-    } else {
-      // Dragging the panel itself - allow both up and down
-      const newHeight = Math.min(Math.max(0, panelHeight + deltaY), maxPanelHeight);
-      setPanelHeight(newHeight);
-      setDragStartY(clientY);
-    }
-  };
-
-  const handleDragEnd = () => {
-    if (!isDragging) return;
-    
-    // Snap behavior: if more than 50% open, snap fully open, otherwise close
-    if (panelHeight > maxPanelHeight * 0.5) {
-      setPanelHeight(maxPanelHeight);
-    } else {
-      setPanelHeight(0);
-      if (onClose) onClose();
-    }
-    
-    setIsDragging(false);
-    setStartDragFromStatusBar(false);
-  };
-
-  // Mouse events
-  const handleMouseDown = (e, fromStatusBar = false) => {
-    e.preventDefault();
-    handleDragStart(e.clientY, fromStatusBar);
-  };
-
-  const handleMouseMove = (e) => {
-    handleDragMove(e.clientY);
-  };
-
-  const handleMouseUp = () => {
-    handleDragEnd();
-  };
-
-  // Touch events
-  const handleTouchStart = (e, fromStatusBar = false) => {
-    handleDragStart(e.touches[0].clientY, fromStatusBar);
-  };
-
-  const handleTouchMove = (e) => {
-    handleDragMove(e.touches[0].clientY);
-  };
-
-  const handleTouchEnd = () => {
-    handleDragEnd();
-  };
-
-  // Global event listeners
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd);
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
-      };
-    }
-  }, [isDragging, dragStartY, panelHeight, startDragFromStatusBar]);
-
-  // Expose drag handlers to parent component for status bar
+  // Expose methods to parent component (for compatibility)
   useImperativeHandle(ref, () => ({
-    handleStatusBarMouseDown: (e) => handleMouseDown(e, true),
-    handleStatusBarTouchStart: (e) => handleTouchStart(e, true),
-    resetPanelHeight: () => {
-      setPanelHeight(0);
-      setIsDragging(false);
-    },
-    setFullHeight: () => {
-      setPanelHeight(maxPanelHeight);
-    },
     getPanelHeight: () => panelHeight,
   }));
 
   // Apply brightness
-  useEffect(() => {
-    document.documentElement.style.filter = `brightness(${quickSettings.brightness}%)`;
-    return () => {
-      document.documentElement.style.filter = '';
-    };
-  }, [quickSettings.brightness]);
+ 
 
   // Apply dark mode
   useEffect(() => {
@@ -147,90 +49,137 @@ function QuickSettingsPanel({ isOpen, onClose, onStatusBarDrag }, ref) {
     }
   }, [quickSettings.darkMode]);
 
-  // Calculate opacity based on panel height
-  const backgroundOpacity = Math.min((panelHeight / maxPanelHeight) * 0.6, 0.6);
+  // Quick settings items
+  const quickSettingsItems = [
+    { id: 'wifi', label: 'Wi-Fi', icon: <Wifi className="w-6 h-6" />, active: quickSettings.wifi },
+    { id: 'darkMode', label: 'Dark Mode', icon: quickSettings.darkMode ? <Moon className="w-6 h-6" /> : <Sun className="w-6 h-6" />, active: quickSettings.darkMode },
+    { id: 'volume', label: 'Volume', icon: <Volume2 className="w-6 h-6" />, active: quickSettings.volume > 0 },
+  ];
 
-  if (!isOpen) return null;
+  // Keep panel mounted as long as it has height or should be open
+  
 
   return (
-   // 1. Update the panel structure
-<div 
-  className={`fixed inset-x-0 top-0 z-50 bg-gray-100 dark:bg-gray-900 rounded-b-3xl shadow-2xl transition-transform duration-300 ease-out ${
-    isOpen ? 'translate-y-0' : '-translate-y-full'
-  }`}
+    <div 
+  className="fixed inset-x-0 z-[9999] bg-black rounded-b-3xl shadow-2xl"
   style={{
-    transform: `translateY(${isDragging ? Math.max(0, dragDistance) : isOpen ? 0 : '-100%'})`,
-    transition: isDragging ? 'none' : 'transform 0.3s ease-out'
-  }}
+  top: '28px',
+  height: `${panelHeight}px`,
+  transform: `translateY(${panelHeight === 0 ? '-8px' : '0px'})`,
+  opacity: Math.min(panelHeight / 120, 1),
+  transition: isDragging
+    ? 'none'
+    : 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease, opacity 0.2s ease',
+  overflow: 'hidden'
+}}
+
+
+
+
 >
-  {/* Header with date/time and settings */}
-  <div className="px-6 pt-6 pb-2">
-    <div className="flex justify-between items-center mb-6">
-      <div>
-        <div className="text-2xl font-medium text-gray-900 dark:text-white">
-          {new Date().toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
+      <div className="h-full overflow-y-auto"
+      style={{ pointerEvents: 'auto' }}>
+      {/* Header with date/time and settings */}
+      <div className="px-6 pt-6 pb-2">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <div className="text-2xl font-medium text-gray-900 dark:text-white">
+              {new Date().toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric'
+              })}
+            </div>
+          </div>
         </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'short',
-            day: 'numeric'
-          })}
+
+        {/* Quick Settings Grid */}
+        <div className="grid grid-cols-4 gap-4">
+          {quickSettingsItems.map((setting) => (
+            <button
+              key={setting.id}
+              className={`flex flex-col items-center p-3 rounded-2xl
+  transition-all active:scale-95
+  ${setting.active 
+    ? 'bg-blue-100 dark:bg-blue-900/50'
+    : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+  }
+`}
+              onClick={() => toggleSetting(setting.id)}
+            >
+              <div className={`p-3 rounded-full mb-2 ${
+                setting.active 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+              }`}>
+                {setting.icon}
+              </div>
+              <span className="text-xs font-medium text-gray-900 dark:text-white">
+                {setting.label}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
-      <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-        <Settings className="w-6 h-6 text-gray-900 dark:text-white" />
-      </button>
-    </div>
 
-    {/* Quick Settings Grid */}
-    <div className="grid grid-cols-4 gap-4">
-      {quickSettings.map((setting) => (
-        <button
-          key={setting.id}
-          className={`flex flex-col items-center p-3 rounded-2xl ${
-            setting.active 
-              ? 'bg-blue-100 dark:bg-blue-900/50' 
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700'
-          }`}
-          onClick={() => toggleSetting(setting.id)}
-        >
-          <div className={`p-3 rounded-full mb-2 ${
-            setting.active 
-              ? 'bg-blue-500 text-white' 
-              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
-          }`}>
-            {setting.icon}
-          </div>
-          <span className="text-xs font-medium text-gray-900 dark:text-white">
-            {setting.label}
-          </span>
-        </button>
-      ))}
-    </div>
-  </div>
+      {/* Brightness Slider */}
+      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3">
+          <Sun className="w-5 h-5 text-gray-900 dark:text-white" />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={quickSettings.brightness}
+            onChange={(e) => updateSlider('brightness', parseInt(e.target.value))}
+            className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none"
+            style={{
+              background: `linear-gradient(90deg, #3b82f6 0%, #3b82f6 ${quickSettings.brightness}%, #e5e7eb ${quickSettings.brightness}%, #e5e7eb 100%)`
+            }}
+          />
+        </div>
+      </div>
 
-  {/* Brightness Slider */}
-  <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-    <div className="flex items-center gap-3">
-      <Sun className="w-5 h-5 text-gray-900 dark:text-white" />
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={brightness}
-        onChange={(e) => setBrightness(e.target.value)}
-        className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none"
-        style={{
-          background: `linear-gradient(90deg, #3b82f6 0%, #3b82f6 ${brightness}%, #e5e7eb ${brightness}%, #e5e7eb 100%)`
-        }}
-      />
+      {/* Volume Slider */}
+      <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3">
+          <Volume2 className="w-5 h-5 text-gray-900 dark:text-white" />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={quickSettings.volume}
+            onChange={(e) => updateSlider('volume', parseInt(e.target.value))}
+            className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none"
+            style={{
+              background: `linear-gradient(90deg, #3b82f6 0%, #3b82f6 ${quickSettings.volume}%, #e5e7eb ${quickSettings.volume}%, #e5e7eb 100%)`
+            }}
+          />
+        </div>
+      </div>
+      
+
+      {/* Drag handle */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+        <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+      </div>
     </div>
-  </div>
-</div>
+    {panelHeight > 0 && (
+  <div
+    className="fixed inset-0 pointer-events-none z-[1]"
+    style={{
+      backgroundColor: '#000',
+      opacity: 1 - quickSettings.brightness / 100
+    }}
+  />
+)}
+    </div>
   );
 }
 

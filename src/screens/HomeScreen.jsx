@@ -7,11 +7,13 @@ import AppDock from "../components/AppDock.jsx";
 import { getManilaTemperature } from '../utils/weather.js';
 import { useManilaTemperature } from '../hooks/useManilaWeather.js';
 import { getTimeBasedBackground } from '../utils/timeBackground.js';
+import { useQuickSettings } from '../components/TabletFrame.jsx';
 
 export default function HomeScreen({ openApp }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const temperature = useManilaTemperature();
   const [background, setBackground] = useState(getTimeBasedBackground());
+  const { isOpen: quickSettingsOpen } = useQuickSettings();
 
   
   useEffect(() => {
@@ -26,23 +28,30 @@ export default function HomeScreen({ openApp }) {
   }, []);
 
   return (
-    <Box
-      sx={{
-        position: 'fixed',
-        top: 28,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '100vh',
-        background: background.gradient,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingBottom: { xs: '40px', sm: '43px' },
-      }}
-    >
+   <Box
+  sx={{
+    position: 'fixed',
+    top: 28,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '100vh',
+    background: background.gradient,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: { xs: '40px', sm: '43px' },
+
+    zIndex: quickSettingsOpen ? 1 : 10,
+    opacity: quickSettingsOpen ? 0.5 : 1,
+    pointerEvents: quickSettingsOpen ? 'none' : 'auto',
+
+    transition: 'opacity 0.3s ease-out',
+  }}
+>
+
       {/* Mountain silhouettes */}
       <Box
         sx={{
