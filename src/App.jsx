@@ -28,7 +28,7 @@ export default function App() {
   return (
     <TabletFrame>
       <StatusBar />
-
+    
       {!activeApp && (
         <HomeScreen openApp={setActiveApp} />
       )}

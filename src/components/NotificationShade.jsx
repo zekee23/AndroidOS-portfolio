@@ -107,7 +107,7 @@ export default function NotificationShade({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-4">
+    <div className="fixed inset-0 z-9999 flex items-start justify-center pt-4">
       {/* Backdrop with opacity animation during drag */}
       <div 
         className="absolute inset-0 bg-black transition-opacity duration-200"
